@@ -1,90 +1,35 @@
-import {
-	type PromptHit,
-	type QueueLane,
-	type ResourceKind,
-	type SessionQueueContent,
-	type SubagentResourceSummary,
-	sameModel,
-	type TemplateInfo,
-	type ThinkingLevel,
-} from "@thinkrail/contracts";
+import type { ResultTarget } from "@thinkrail/chat-ui/ChatActions";
+import { ChatMediaContext } from "@thinkrail/chat-ui/ChatImage";
+import { Composer, type ComposerHandle, type ComposerSubmitDisposition, type MentionCandidate, type SubmitBehavior } from "@thinkrail/chat-ui/Composer";
+import { ExtraUsageNotice } from "@thinkrail/chat-ui/ExtraUsageNotice";
+import { mentionLookup } from "@thinkrail/chat-ui/fileTargets";
+import { awaitingToolCallIdOf } from "@thinkrail/chat-ui/interactionState";
+import { parseModelRef, RunModelLabel } from "@thinkrail/chat-ui/ModelEffortLabel";
+import type { ModelSelection } from "@thinkrail/chat-ui/ModelEffortPicker";
+import { compactSubmissionError, mergeNativeChatCommands, parseNativeChatCommand, prepareNameChatCommand } from "@thinkrail/chat-ui/nativeCommands";
+import { type ParsedTemplate, templateToSlashCommand, useTemplateCommandPicker } from "@thinkrail/chat-ui/prompt";
+import type { PromptImagesOwner } from "@thinkrail/chat-ui/promptImages";
+import { QueueStrip } from "@thinkrail/chat-ui/QueueStrip";
+import { CommandLogView, mcpResourceId, newestResourceId, ResourcesAttention, ResourcesButton, ResourcesDock, ResourcesInspector } from "@thinkrail/chat-ui/resources";
+import { type PromptHit, type QueueLane, type ResourceKind, type SessionQueueContent, type SubagentResourceSummary, sameModel, type TemplateInfo, type ThinkingLevel } from "@thinkrail/contracts";
 import { t as translate, useT } from "@thinkrail/locales/react";
 import { Button } from "@thinkrail/ui/button";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogTitle,
-} from "@thinkrail/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@thinkrail/ui/dialog";
 import { focusAndReveal } from "@thinkrail/ui/focus";
-import {
-	useCallback,
-	useEffect,
-	useInsertionEffect,
-	useLayoutEffect,
-	useMemo,
-	useRef,
-	useState,
-} from "react";
+import { useCallback, useEffect, useInsertionEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useNow } from "@/components/useNow";
-import { type ParsedTemplate, templateToSlashCommand, useTemplateCommandPicker } from "@/prompt";
-import {
-	EMPTY_RUNTIME,
-	SettingsSection,
-	selectCanRenameChat,
-	selectCatalogModel,
-	selectCompactionTurnIds,
-	selectComposerFocusRequested,
-	selectPickerModels,
-	selectQuestionMayClaimFocus,
-	selectSkillsStale,
-	selectSupportsMcp,
-	selectWorkspaceById,
-	toast,
-	useAppStore,
-	workspaceName,
-} from "@/store";
+import { DICTATION_EVENT } from "@/speech";
+import { EMPTY_RUNTIME, SettingsSection, selectCanRenameChat, selectCatalogModel, selectCompactionTurnIds, selectComposerFocusRequested, selectPickerModels, selectQuestionMayClaimFocus, selectSkillsStale, selectSupportsMcp, selectWorkspaceById, toast, useAppStore, workspaceName } from "@/store";
 import { errorText, getTransport, hostUrl, watchMcpWorkspace, wsErrorCode } from "@/transport";
-import type { ResultTarget } from "./ChatActions";
+import { LOCAL_KEY_DEFAULTS } from "@/keybindings";
 import { ChatHeader } from "./ChatHeader";
-import { ChatMediaContext } from "./ChatImage";
 import ChatTranscript, { type ChatTranscriptHandle } from "./ChatTranscript";
-import {
-	Composer,
-	type ComposerHandle,
-	type ComposerSubmitDisposition,
-	type MentionCandidate,
-	type SubmitBehavior,
-} from "./Composer";
-import { deriveComposerSuggestions } from "./composerSuggestions";
+import { deriveComposerSuggestions } from "@thinkrail/chat-ui/composerSuggestions";
 import { DEFAULT_DOCK_FOLD, type DockFold, dockCollapsed, withDockCollapsed } from "./dockFold";
-import { ExtraUsageNotice } from "./ExtraUsageNotice";
-import { mentionLookup } from "./fileTargets";
 import { HistoryOverlay } from "./HistoryOverlay";
-import { awaitingToolCallIdOf } from "./interactionState";
 import { McpServerDetail } from "./McpServerDetail";
-import { parseModelRef, RunModelLabel } from "./ModelEffortLabel";
-import type { ModelSelection } from "./ModelEffortPicker";
-import {
-	compactSubmissionError,
-	mergeNativeChatCommands,
-	parseNativeChatCommand,
-	prepareNameChatCommand,
-} from "./nativeCommands";
-import type { PromptImagesOwner } from "./promptImages";
-import { QueueStrip } from "./QueueStrip";
 import { deriveRecentPrompts } from "./recentPrompts";
-import {
-	CommandLogView,
-	mcpResourceId,
-	newestResourceId,
-	ResourcesAttention,
-	ResourcesButton,
-	ResourcesDock,
-	ResourcesInspector,
-} from "./resources";
 import { SkillsDialog } from "./SkillsDialog";
 import { SubagentTranscriptDialog, SubagentTranscriptPane } from "./SubagentTranscriptDialog";
 import { SuggestionChips } from "./SuggestionChips";
@@ -93,8 +38,8 @@ import { useChatResources, useCommandLog } from "./useChatResources";
 import { useModelCatalog } from "./useModelCatalog";
 import { useModelPreferences } from "./useModelPreferences";
 import { useSessionStats } from "./useSessionStats";
-import "./tools/register";
-import type { ChatAttachment } from "./types";
+import "@thinkrail/chat-ui/tools/register";
+import type { ChatAttachment } from "@thinkrail/chat-ui/types";
 import { useHistorySearch } from "./useHistorySearch";
 
 const TRY_AGAIN_PROMPT = "Try again.";
@@ -1045,11 +990,13 @@ export default function ChatView({
 				/>
 				<Composer
 					ref={composerRef}
+					localKeyDefaults={LOCAL_KEY_DEFAULTS.composer}
 					value={draft}
 					onChange={(v) => useAppStore.getState().setChatDraft(sessionId, v)}
 					imageOwner={imageOwner}
 					isStreaming={isStreaming}
 					awaitingResponse={awaitingResponse}
+					dictationEvent={DICTATION_EVENT}
 					growthLimit={composerGrowthLimit}
 					commands={mergedCommands}
 					templatePending={templatePending}
