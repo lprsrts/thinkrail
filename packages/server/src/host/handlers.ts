@@ -383,6 +383,7 @@ function remoteAccessStatus(state: RemoteAccessState): RemoteAccessStatus {
 			connected,
 		})),
 		...(state.relay ? { relay: state.relay } : {}),
+		...(state.nostr ? { nostr: state.nostr } : {}),
 	};
 }
 
