@@ -120,7 +120,7 @@ import { forgetWorkspaceChanges, revertChange, undoChange } from "../changes";
 import { selectDirectory } from "../dialog";
 import { listAvailableEditors, openEditor, revealInFileManager } from "../editors";
 import { hostEnvironmentStatus, updateHostEnvironment } from "../environment";
-import { listExtensionCatalog } from "../extensions";
+import { createExtensionQueries, listExtensionCatalog } from "../extensions";
 import {
 	completeSurvey,
 	confirmInAppSurvey,
@@ -289,6 +289,7 @@ import {
 	seesChats,
 } from "./chats";
 import { continuationStatus, startContinuation } from "./continuations";
+import { extensionHostServices } from "./extensionHost";
 import { nudgeBaseRefWorkspaces } from "./fsNudge";
 import { buildHistoryScope } from "./historyScope";
 import { provisionInitialTerminal } from "./initialTerminal";
@@ -351,6 +352,11 @@ import {
 } from "./todoReview";
 
 const log = logger("host");
+
+const extensionQuery = createExtensionQueries({
+	isDisabled: (name) => getConfig().disabledExtensions.includes(name),
+	services: extensionHostServices,
+});
 
 export interface RequestContext {
 	clientKey: string;
@@ -1214,6 +1220,7 @@ const handlers: WsHandlers = {
 		);
 	},
 	"extension.list": () => listExtensionCatalog(new Set(getConfig().disabledExtensions)),
+	"extension.query": (p) => extensionQuery(p),
 	"packages.list": (p) => packagesList(p),
 	"packages.install": (p) => packagesInstall(p),
 	"packages.remove": (p) => packagesRemove(p),

@@ -38,6 +38,12 @@ list for registry extensions.
   `ensureArtifactsDir`, which is `shared`'s `seedArtifactsDir` on the session cwd), `omitDisabledRegistryExtensions(result, isDisabled)` (drops a disabled
   extension's `<inline:…>` entries from a pi `LoadExtensionsResult`, for the parent loader's
   `extensionsOverride`, so a disabled extension is absent rather than present-and-empty),
+  `omitSupersededPackages(result, isDisabled)` (composed between the two: drops the extensions of the
+  npm packages an enabled extension names in `supersedesPackages`, identified by the `name` of the
+  nearest `package.json` above each loaded file — memoized per folder — so an npm, git or local install
+  of the package is left out alike; inline entries are never touched, and a disabled superseding
+  extension lets the package load again. The catalog still lists the package with what a load recorded,
+  since recording runs first),
   `preferRegistryTools(result)` (also composed into that override, after the disabled filter). It moves a
   registry extension directly ahead of the first non-registry extension that registers one of its tool
   names, so a user-installed same-name package never takes over a tool whose host UI and lifecycle key on
@@ -49,12 +55,19 @@ list for registry extensions.
   matching by name rather than by recomputed names keeps it independent of how many per-session factories
   a session got),
   `listExtensionCatalog(disabled)` (the Settings catalog: per entry `name`, `title` — falling back to
-  `name` — optional `description`, `hasChildExtensions`, `enabled = !disabled.has(name)`, the declared
+  `name` — optional `description`, `hasParentExtensions` (the descriptor declares `extensions` or
+  `sessionExtensions`), `hasChildExtensions`, `enabled = !disabled.has(name)`, the declared
   `settings` (`key` + `default`), and the tool names
   its **parent** factories register against a recording stub `ExtensionAPI` whose every other member is
   inert. Per-session factories are built for this with an inert session whose `awaitToolResponse` and
   `workspaceFiles.check` reject and whose `setting` answers the declared defaults. The tools are computed once per process, never from a live session, and a factory that throws against the stub
-  keeps the tools it recorded before throwing), and `resolveExtensionSkillRoots(entry)` (the owner-scoped skill resolver: the extension's
+  keeps the tools it recorded before throwing; plus the declared `apiVersion` — the catalog never builds
+  `queries(host)`), `createExtensionQueries({ isDisabled, services, entries? })` (the
+  `extension.query` dispatcher: each extension's `queries(host)` is built once per process, lazily on its
+  first query, with that extension's `ExtensionHostServices` from the injected `services(name)`; an unknown
+  extension, one without `queries`, an unknown method or a malformed request is `UNKNOWN_EXTENSION_QUERY`,
+  a disabled one `EXTENSION_DISABLED` — checked on every call, so a re-enable needs no rebuild — and an
+  error a query throws propagates unchanged), and `resolveExtensionSkillRoots(entry)` (the owner-scoped skill resolver: the extension's
   entry file from `specifier`, then each `skillPackages` manifest via `createRequire(extensionEntry)`,
   returning its `pi.skills` directories; a named package with no skills fails loudly),
   `STAGED_HOST_SKILLS_ROUTE` (`host`) and `stagedExtensionSkillRoute(name)` (`extensions/<name>`) — the
@@ -64,15 +77,25 @@ list for registry extensions.
   staged dir, that owner folder with one, nothing for an extension without `skillPackages`). The specifier is kept
   as a string precisely because a descriptor holds functions, which yield no module identity.
 - **Public surface (barrel):** `serverExtensions`, `ServerExtensionEntry`, `registryInlineExtensions`,
-  `RegistryExtensionKind`, `ExtensionDisabled`, `omitDisabledRegistryExtensions`, `preferRegistryTools`,
+  `RegistryExtensionKind`, `ExtensionDisabled`, `omitDisabledRegistryExtensions`, `omitSupersededPackages`, `preferRegistryTools`,
   `registryExtensionName`, `extensionSessionServices`, `HostSessionServices`, `ExtensionSettingValue`,
   `checkWorkspaceFile`, `workspaceFiles`, `MOCKUP_DIR`,
   `listExtensionCatalog`,
   `resolveExtensionSkillRoots`, `STAGED_HOST_SKILLS_ROUTE`, `stagedExtensionSkillRoute`,
   `extensionSkillRoots`, `interactiveTools`, `InteractiveTools`, `artifactTools`, `ArtifactTools`,
-  `ExtensionSessionServices`, `InteractiveTool`, `ArtifactTool`, `ToolResponse`.
+  `ExtensionSessionServices`, `InteractiveTool`, `ArtifactTool`, `ToolResponse`, `createExtensionQueries`,
+  `ExtensionHostServicesFor`, `ExtensionHostServices`, `ExtensionSessionView`, `ExtensionSessionPlacement`,
+  `ExtensionHostProject`, `ExtensionHostWorkspace`, `ExtensionSessionStatus`, `ExtensionMessageAnchor`,
+  `ExtensionTurnReceipt`, `ExtensionTurnTree`, `ExtensionTreeFile`, `ExtensionArtifactsDir`, `ExtensionLog`,
+  `ExtensionQuery`.
 - **Session-seam types:** `ExtensionSessionServices`, `InteractiveTool` and `ToolResponse` are re-exported
   from `extension-api/server` so that `agent` can type the services it builds through this barrel.
+- **Query-seam types:** `ExtensionHostServices` and its value types (`ExtensionSessionView`,
+  `ExtensionSessionPlacement`, `ExtensionHostProject`, `ExtensionHostWorkspace`, `ExtensionSessionStatus`,
+  `ExtensionMessageAnchor`, `ExtensionTurnReceipt`, `ExtensionTurnTree`, `ExtensionTreeFile`,
+  `ExtensionArtifactsDir`, `ExtensionLog`, `ExtensionQuery`) are re-exported the same way, beside `ExtensionHostServicesFor`, so
+  `host` builds each extension's services through this barrel. This module never builds them: the
+  services arrive as a parameter, so there is no edge to `projects`, `workspaces` or `agent`.
 - **Interactive tools (`interactive.ts`):** `interactiveTools(isDisabled)` folds the enabled registry
   extensions' `interactiveTools` declarations into one name → `InteractiveTool` map (first declaration of a
   name wins). It is the only tool knowledge `agent` holds for restart repair, transcript-derived
@@ -83,7 +106,7 @@ list for registry extensions.
   headless-search policy: it compensates for the host's UI for any copy of `pi-web-access`, so it is not
   the extension's to own.
 - **Allowed deps:** `@thinkrail/extension-api/server` (types), every `@thinkrail/ext-*/server`,
-  `@thinkrail/shared` (`paths`, `artifactsDir`),
+  `@thinkrail/shared` (`paths`, `artifactsDir`, `codedError`),
   `@earendil-works/pi-coding-agent` (types only), `@thinkrail/contracts` (the `ExtensionCatalogEntry` type),
   Node `module`/`fs`/`path`.
 - **Forbidden:** `host`; `settings` (the disabled set arrives as a parameter); sibling features; resolving extension-owned packages from the host's own
@@ -92,7 +115,9 @@ list for registry extensions.
 
 ## Consumers
 
-`host` answers `extension.list` with `listExtensionCatalog` over the `disabledExtensions` setting.
+`host` answers `extension.list` with `listExtensionCatalog` over the `disabledExtensions` setting, and
+`extension.query` with one `createExtensionQueries` over the same setting and its per-extension host
+services.
 `agent/extensions.ts` composes the flattened parent set into every resource loader and the child set
 into the curated hidden-child extensions in dev and bundled mode alike, and leaves a disabled extension's
 `extensionSkillRoots` out of pi's skill inputs; `buildSupport.ts` hands both packagers each extension's skill roots

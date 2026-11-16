@@ -85,6 +85,7 @@ import {
 	requestSessionReload,
 	respondToTool,
 	sendHostMessageToSession,
+	sessionCompletionOf,
 	sessionImageSource,
 	setAgentReviewEnabledResolver,
 	setSessionCreatedPublisher,
@@ -572,11 +573,14 @@ test("agent_settled carries the final attempt's terminal metadata", async () => 
 			}),
 		}),
 	]);
+	expect(sessionCompletionOf(session.sessionId)).toMatchObject({ outcome: "failed" });
+	expect(sessionCompletionOf("never-ran")).toBeNull();
 
 	fauxA.setResponses([fauxAssistantMessage("complete")]);
 	await promptSession(session.sessionId, "again");
 	const completionId = getSessionState(session.sessionId).completion?.completionId;
 	if (!completionId) throw new Error("settled run has no completion id");
+	expect(sessionCompletionOf(session.sessionId)).toEqual({ completionId, outcome: "succeeded" });
 	expect(acknowledgeCompletion(session.sessionId, "stale")).toMatchObject({
 		acknowledged: false,
 		record: { title: "" },

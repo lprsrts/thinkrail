@@ -24,6 +24,7 @@ import {
 	DropdownMenuSubTrigger,
 	DropdownMenuTrigger,
 } from "@thinkrail/ui/dropdown-menu";
+import { useTreeItem } from "@thinkrail/ui/tree-item";
 import { cn } from "@thinkrail/ui/utils";
 import { type MouseEvent, useEffect, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
@@ -55,7 +56,6 @@ import {
 	Tree,
 	treeRowControlProps,
 	treeRowKey,
-	useTreeItem,
 	useTreeKeys,
 } from "./treeNavigation";
 import {

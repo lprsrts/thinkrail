@@ -26,7 +26,11 @@ One `WorkbenchFrame` belongs to a frontend surface, not a workspace. It carries 
 A `WorkspaceViewState` is keyed by workspace and references frame group ids. It carries
 file/diff/changes/chat/document/terminal membership and order plus center preview identity (a `changes`
 tab is the per-scope review surface defined in the store spec; its layout record is kind + id + name +
-scope, nothing cached, and it is preview-eligible like file and diff tabs). The separate
+scope, nothing cached, and it is preview-eligible like file and diff tabs) and `extension` tabs. An
+`extension` tab hosts an extension's panel ([[submodule-web-shell]] § Extension panels); its record is kind +
+id + name + extension + panel + the panel's `titleKey` + flat string `params`, nothing cached. It lives
+in the center only, is never preview-eligible, opens once per (extension, panel, params) per workspace,
+and shows a generic tab icon — layout never reads the extension registry. The separate
 `LayoutAttention` overlay carries selection per group, last focus for center/each auxiliary region, and
 per-group navigation clocks. Attention is keyed per workspace, but a selected singleton tool is shared
 across the window's views (a resource selection is not); the pure adoption rule lives here and its
@@ -43,7 +47,8 @@ resolved when the operation runs, never persisted. Helpers evaluated during rend
 `describeLayoutGroup`, `removeLayoutGroup`, `separatePanesReason`, `layoutPresetName`) take the caller's
 translator as their first argument, so a language change recomputes them. `layoutTabName` words every
 default name at render from the tab's kind (tool, untitled chat, default terminal, Changes / diff scope,
-plan document) through `lib`'s default-name helpers, and shows a name set by the user or agent verbatim.
+plan document, extension panel by its persisted `titleKey` when it is a key of this build, else the panel
+id) through `lib`'s default-name helpers, and shows a name set by the user or agent verbatim.
 Its optional third argument, the Workbench's **`chatFirstPrompts`** prop (`ChatFirstPrompts`, first prompt by
 session id, injected by the shell beside `onRenameChat`), labels an unnamed chat tab — and a plan
 document whose stored chat name is empty, by `sourceId` — by the chat's first prompt through `lib`'s

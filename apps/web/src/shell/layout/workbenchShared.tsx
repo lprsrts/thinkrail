@@ -390,6 +390,8 @@ export function tabSearchKeywords(
 			return [name, tab.kind, tab.sessionId];
 		case "document":
 			return [name, tab.kind, tab.sourceId, tab.docPath];
+		case "extension":
+			return [name, tab.kind, tab.extension, tab.panel];
 		case "terminal":
 			return [name, tab.kind, tab.tabKey];
 		case "tool":

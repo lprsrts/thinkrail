@@ -57,6 +57,7 @@ import {
 	DropdownMenuTrigger,
 } from "@thinkrail/ui/dropdown-menu";
 import { LoadingRegion } from "@thinkrail/ui/skeleton";
+import { useTreeItem } from "@thinkrail/ui/tree-item";
 import { cn } from "@thinkrail/ui/utils";
 import { type MouseEvent, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
@@ -109,7 +110,6 @@ import {
 	treeRowControlProps,
 	treeRowKey,
 	treeToggleProps,
-	useTreeItem,
 	useTreeKeys,
 } from "./treeNavigation";
 import { useOpenProject } from "./useOpenProject";

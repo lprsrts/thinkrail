@@ -16,7 +16,7 @@ The responsive composition root: top-level app chrome, active-project/workspace 
 
 - **Owns:** `Shell` as the one composition root; topbar and persistent location context; active-project/workspace routing; single Settings, analytics-consent, survey-invitation, survey-window, attention-notification permission-preface, and Toaster mounts plus the keyboard-opened Create workspace dialog, the `Mod+K` / double-Shift search palette host, the `Mod+Shift+F` Find in Files host and the `Mod+?` keyboard-shortcuts dialog (and the once-mounted attention-notification observer from [[submodule-web-notifications]]); the enabled web extensions' global overlays (`ExtensionOverlays`, *Global chords*); theme application and global shortcuts; focus recovery (*Focus recovery*) and the Esc that leaves a text field (*Esc leaves a text field*); the command catalog the palette runs ([[submodule-web-commands]], [[submodule-web-search]]); the injected Layout, Keyboard and optional application Update settings sections; and integration of the workbench engine with store, persistence, panels, transport-backed domain state, and error boundaries.
 - **Public surface:** `Shell`.
-- **Allowed deps:** child layout modules; `updates`; `search` + `commands` (the palette and the command contract it composes for it); `keybindings` (the chord table and resolver `useGlobalHotkeys` matches through and the palette's shortcuts read, and the shortcut catalog the cheatsheet renders); `findInFiles` (the window `FindInFilesHost` composes); `extensions` (the enabled extensions whose overlays and shortcut rows it mounts, and every extension's commands it resolves); `panels`; `chat` app-integration hydration/rendering; `store`, `transport`, contracts (types, wire constants, and the shared `createQuitConfirmation` rule), `@thinkrail/ui/*`, `@thinkrail/locales` (UI strings), `i18n` (`useLocaleSync`, mounted once), `components/ErrorBoundary`, `components/QuietScrollArea`, `constants`, `lib`, `themes`, and `clientPreferences` (`markdownOutlinePreference` persists the store's Markdown outline visibility and side per client, through the same adapter `layoutState` uses).
+- **Allowed deps:** child layout modules; `updates`; `search` + `commands` (the palette and the command contract it composes for it); `keybindings` (the chord table and resolver `useGlobalHotkeys` matches through and the palette's shortcuts read, and the shortcut catalog the cheatsheet renders); `findInFiles` (the window `FindInFilesHost` composes); `extensions` (the enabled extensions whose overlays and shortcut rows it mounts, every extension's commands it resolves, and the panel list) and `@thinkrail/extension-api/web` (panel types); `panels`; `chat` app-integration hydration/rendering; `store`, `transport`, contracts (types, wire constants, and the shared `createQuitConfirmation` rule), `@thinkrail/ui/*`, `@thinkrail/locales` (UI strings), `i18n` (`useLocaleSync`, mounted once), `components/ErrorBoundary`, `components/QuietScrollArea`, `constants`, `lib`, `themes`, and `clientPreferences` (`markdownOutlinePreference` persists the store's Markdown outline visibility and side per client, through the same adapter `layoutState` uses).
 - **Forbidden:** server/shared/pi imports; being imported by panels/store/transport; putting arrangement knowledge into a feature panel; or sending current frame/view state through transport.
 
 ## Internal modules
@@ -133,6 +133,37 @@ Project/file/change/review/chat/terminal views receive only resource identity, v
 Every async resource/session/catalog hydration checks connection generation, workspace lifetime, and the current local frame/view identity before installing data or a follow-up placement. A peer-created chat remains discoverable through host history but does not open a local tab. Host terminal catalog membership is shared: reconciliation removes dead local references and places a newly discovered catalog tab into a compatible local terminal slot without changing frame geometry or stealing attention. Explicit terminal close remains host-domain lifetime and converges removal in every surface.
 
 Default-terminal creation no longer depends on a host layout revision. The workspace-creation flow carries a host-owned pending marker; the host reserves the deterministic process-free terminal catalog entry and clears the marker only after durable success. Each frontend then places the catalog tab locally, normally into its bottom slot; PTY attach still waits for the visibility gate.
+
+## Extension panels
+
+An `extension` center tab hosts a panel an extension's web half declares; the shell knows panels only
+through the web registry ([[submodule-web-extensions]]), never by name. `ExtensionPanelBody` looks the
+tab's extension and panel up and renders a placeholder instead of the panel, first match wins
+(`extensionPanelState`): missing (no web registration), unsupported (the host predates `extension.query`,
+`supportsExtensionQuery`, v125), disabled (in `disabledExtensions`, with *Open Settings*, decided before
+the catalog arrives), the catalog read failed (with *Retry*), missing (the extension is absent from the
+host's `extension.list`); a host not yet welcomed or a catalog still loading shows a loading region.
+Otherwise it lazy-loads the panel (one `React.lazy` per declaration) inside its own `ErrorBoundary`
+(`reportId: "extension-panel"`) and hands it a `PanelHost` (`extensionPanelHost.ts`) built over transport
+and the shared `paletteNavigator`: `query` is `extension.query` for that extension only, refused locally
+as `UNKNOWN_EXTENSION_QUERY` below v125; `openChat` enters the target workspace through the navigator
+with the chat as its route target, so chat reconciliation opens it like any palette pick, and with an
+anchor it loads the workspace row and sets the store's `chatLocationRequest` (message index, anchor text,
+tool call, approximate) — the same jump the history search uses; `openPanel` looks the extension's own
+panel up in the registry and opens its tab in this workspace's view, named with the given title (tab
+`name`, which wins over the title key); `renderToolCall` renders `chat/ToolCallPreview` — the tool's
+registered renderer, no card, fold or interaction — inside its own `ErrorBoundary`
+(`reportId: "extension-panel-tool-call"`); `openFile` opens the workspace-relative path through
+`panels/openTabs` (`openFileAtLine` with a line, else `openFileInTab`, both as a kept tab), first entering
+the target workspace through the navigator when it is not the panel's own; `openArtifacts` asks the store
+to reveal this workspace's Artifacts tool (`requestToolView(workspaceId, "artifacts")`); and
+`hostApiVersion` comes from the extension's catalog entry, read once per connection generation (a failed
+read is forgotten, so *Retry* asks again). A panel therefore never reaches the store or transport itself.
+
+The palette lists `view.extension.<ext>.<panel>` for every panel whose `scopes` include `project` while a
+workspace is active (a `session`-only panel opens only from another panel, with its params); it opens one
+tab per (extension, panel, params) in that workspace's view
+([[submodule-web-shell-layout]]), focusing an existing one.
 
 ## Layout settings
 

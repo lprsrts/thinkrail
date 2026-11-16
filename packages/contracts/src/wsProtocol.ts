@@ -14,6 +14,7 @@ import type {
 	EditorInfo,
 	ExistingWorktreeCandidate,
 	ExtensionCatalogEntry,
+	ExtensionQueryParams,
 	FileNode,
 	GitCommit,
 	GitDiffScope,
@@ -143,7 +144,8 @@ export type TemplateReadLocation =
 	| { projectId: string; workspaceId?: never }
 	| { workspaceId?: never; projectId?: never };
 
-export const PROTOCOL_VERSION = 124;
+export const PROTOCOL_VERSION = 125;
+export const EXTENSION_QUERY_PROTOCOL_VERSION = 125;
 export const ARTIFACT_ROLES_PROTOCOL_VERSION = 124;
 export const KEYBINDINGS_PROTOCOL_VERSION = 123;
 export const BROWSER_VIEW_PROTOCOL_VERSION = 122;
@@ -491,6 +493,7 @@ export const WS_METHODS = {
 	skillList: "skill.list",
 	skillsState: "skills.state",
 	extensionList: "extension.list",
+	extensionQuery: "extension.query",
 	packagesList: "packages.list",
 	packagesInstall: "packages.install",
 	packagesRemove: "packages.remove",
@@ -1252,6 +1255,7 @@ export interface WsMethodMap {
 	"skill.list": { params: { projectId: string }; result: SlashCommandInfo[] };
 	"skills.state": { params: { workspaceId: string }; result: SkillCatalogEntry[] };
 	"extension.list": { params: Record<string, never>; result: ExtensionCatalogEntry[] };
+	"extension.query": { params: ExtensionQueryParams; result: unknown };
 	"packages.list": { params: { workspaceId?: string; force?: boolean }; result: PiPackagesCatalog };
 	"packages.install": {
 		params: { source: string; scope: PiPackageScope; workspaceId?: string };
@@ -1665,6 +1669,8 @@ export type WsErrorCode =
 	| "TEXT_SEARCH_FAILED"
 	| "FRAME_TOO_LARGE"
 	| "KEYBINDINGS_INVALID"
+	| "EXTENSION_DISABLED"
+	| "UNKNOWN_EXTENSION_QUERY"
 	| SpeechErrorCode;
 
 export interface WsResponse {

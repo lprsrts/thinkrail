@@ -882,6 +882,46 @@ describe("registry extensions", () => {
 		}
 	});
 
+	it("leaves a user's install of the vanilla /insights package out while session insights is on", async () => {
+		const root = mkdtempSync(join(tmpdir(), "thinkrail-superseded-"));
+		const project = join(root, "project");
+		const home = join(root, "home");
+		const agentDir = join(root, "pi-agent");
+		mkdirSync(project, { recursive: true });
+		mkdirSync(home, { recursive: true });
+		mkdirSync(agentDir, { recursive: true });
+		const extensionEntry = createRequire(import.meta.url).resolve(
+			"@thinkrail/ext-session-insights/server",
+		);
+		const corePackage = join(
+			createRequire(extensionEntry).resolve("@thinkrail/pi-session-insights/package.json"),
+			"..",
+		);
+		writeFileSync(join(agentDir, "settings.json"), JSON.stringify({ packages: [corePackage] }));
+		const restore = stubSkillEnv(home, agentDir);
+		let disabled = new Set<string>();
+		setDisabledExtensionsResolver(() => disabled);
+		try {
+			const settingsManager = createPiSettings(project, agentDir, {
+				projectTrusted: true,
+				packages: "enabled",
+			});
+			const loader = await buildResourceLoader(project, settingsManager, () => ctx(true));
+			const commands = () =>
+				loader.getExtensions().extensions.flatMap((extension) => [...extension.commands.keys()]);
+			expect(loader.getExtensions().errors).toEqual([]);
+			expect(commands()).not.toContain("insights");
+
+			disabled = new Set(["session-insights"]);
+			await loader.reload();
+			expect(commands()).toContain("insights");
+		} finally {
+			setDisabledExtensionsResolver(() => new Set());
+			restore();
+			rmSync(root, { recursive: true, force: true });
+		}
+	});
+
 	it("a workspace without specs gets no spec-graph child and no spec rule, the rest unchanged", async () => {
 		setSpecsEnabledResolver((workspaceId) => workspaceId !== "chat-1");
 		try {

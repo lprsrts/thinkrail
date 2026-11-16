@@ -19,7 +19,10 @@ The host retains registration, lifecycle and ordering; `define*` helpers preserv
 - `./web` exposes `ToolStatus`, `ToolRenderProps`, `ToolRenderer`, `ToolSummary`, `ToolChrome`,
   `ToolProminence`, `ToolWidth`, `ToolRegistrationOptions`, `ToolInteraction`, `ToolInteractionState`,
   `ToolPlacement`, `WebExtension`, `GlobalOverlayProps`, `ExtensionCommand`, `ExtensionChord`,
-  `ExtensionShortcut`, `ExtensionShortcutKey`, `defineWebExtension`, and the pure argument/result readers from `toolHelpers` and `toolResultContent`.
+  `ExtensionShortcut`, `ExtensionShortcutKey`, `defineWebExtension`, the panel contract
+  (`PanelDeclaration`, `PanelProps`, `PanelHost`, `PanelChatTarget`, `PanelChatAnchor`, `PanelToolCall`,
+  `PanelHostScope`, `PanelScope`), and the pure argument/result readers from `toolHelpers` and
+  `toolResultContent`.
 - **Images are references.** `parseToolResultContent(result).images` returns `contracts`' `WireImage`s,
   in block order.
   - A host reference (`ref` plus optional `width`/`height`) is accepted when its `ref` lies under
@@ -80,7 +83,8 @@ The host retains registration, lifecycle and ordering; `define*` helpers preserv
   `respond` are the stable contract; the focus/layout members and `placement` are the chat's own services handed
   through and may change with the chat (a renderer must tolerate their absence). Its DOM-typed members
   are the reason the package's `lib` includes `DOM`; the package still never touches the DOM.
-- `WebExtension` is `{ name, title?, description?, toolRenderers?, globalOverlay?, commands?, shortcuts? }`.
+- `WebExtension` is `{ name, title?, description?, toolRenderers?, globalOverlay?, commands?, shortcuts?,
+  panels? }`.
   Each tool-name entry carries a `renderer` and optional `ToolRegistrationOptions` under `options`;
   `toolRenderers` is optional because a web-only extension renders no tool. `title` / `description` are
   `MessageKey`s for the Settings row of an extension the server catalog lacks. `globalOverlay` is a
@@ -116,15 +120,60 @@ The host retains registration, lifecycle and ordering; `define*` helpers preserv
   the same fields as `ExtensionChord`) for keys the extension handles itself and the user cannot rebind
   (hint mode's in-mode keys); the cheatsheet lists them while the extension is enabled. `defineWebExtension` is a typed identity helper: it preserves the
   descriptor and its inferred keys without registration or default injection.
+- **Panels are props-driven.** A `PanelDeclaration` is a `title` locale key, an icon, the `scopes` it
+  opens from and a lazy `load()` of its component; the component receives `PanelProps { host, params }`
+  (`params` a flat string map the tab persists) and never reaches host state. `PanelHost.query` calls
+  `extension.query` for the panel's own extension only and rejects with the host's coded errors; an aborted
+  signal rejects locally, since the wire has no cancel — the host still runs the query, so a cancelled
+  write (an export) can still land. `openChat` navigates to a chat; with `at`
+  (`PanelChatAnchor`: a display-projection `messageIndex` and `anchorText`, optionally a `toolCallId`,
+  and `approximate` when it is the nearest shown ancestor) it reveals that place — the panel learns the
+  anchor from its server half's `messageAnchor`, because the client transcript carries no pi entry ids.
+  `openPanel(panel, params?, title?)` opens or focuses another panel of the same extension in `scope`'s
+  workspace, the title naming the tab. `renderToolCall(call)` draws a recorded tool call
+  (`PanelToolCall`: id, name, arguments, a `{ content, details }` result, `done` / `error`) through the
+  chat's registered renderer, without chat chrome or interaction. `openFile(workspaceId, path, line?)`
+  opens a workspace file (a workspace-relative `path`, never a home path) in a center tab, at `line` when
+  given, entering that workspace first when it is another one. `openArtifacts?()` reveals the Artifacts
+  tool of `scope`'s workspace (where an extension's writes through `ensureArtifactsDir` appear); it is
+  optional so a panel offers the action only on a host that has one. `scope` is the workspace whose view
+  holds the tab. `hostProtocol` and `hostApiVersion` (the server half's declared `apiVersion`) let a
+  panel degrade against an older host or server half.
 - `./server` exposes `ServerExtension` and `defineServerExtension`, with pi `ExtensionFactory` types
   only. Descriptors carry `name` (the identity — the Settings on/off switch and `disabledExtensions` key
   on it), optional display copy `title` / `description` for the Settings catalog, `extensions`, optional
   `sessionExtensions`, optional `interactiveTools`, optional `artifactTools`, optional `settings` (declared per-extension settings —
   today only `{ type: "boolean", default }`; the values live in the host's config keyed by extension name
-  and the Settings copy is the app's locale keys), optional `childExtensions` and optional
-  `skillPackages` specifiers. Its identity
+  and the Settings copy is the app's locale keys), optional `childExtensions`, optional
+  `skillPackages` specifiers and optional `supersedesPackages` (npm names of vanilla pi packages whose
+  extensions the host leaves out of its sessions while this extension is on — a user's vanilla install of
+  the same capability), plus optional `apiVersion` and `queries`. Its identity
   helper preserves factories, order and optional-field absence; loading and skill resolution remain host
   responsibilities.
+- `queries(host: ExtensionHostServices)` returns `ExtensionQuery` methods by name — queries (reads, and
+  writes only to the extension's own data folder or the workspace's Artifacts); the contract
+  is in [[module-thinkrail-extensions]] § Shape. **`ExtensionHostServices` carries file locations and host
+  facts, never parsed pi data**: `dataDir` (absolute, extension-private and disposable —
+  `<thinkrail data>/extensions/<name>/`, created by the extension on its first write), `log`
+  (`ExtensionLog`), `sessionsRoot()` (pi's default sessions root, read live), `sessionScope(scope)` (an
+  `ExtensionSessionView`: the open projects with their workspaces, and `locate(cwd)` placing a session
+  cwd in an open or removed workspace or none, `null` when hidden or out of scope), `childTranscriptDirs`
+  (the existing delegation directories of a parent session), `sessionStatus` (live, plus the last
+  persisted run outcome) and `messageAnchor(sessionFile, entryId)` (`ExtensionMessageAnchor`: where an
+  entry shows in the host's chat — its display-projection index and anchor text, plus `toolCallId` for a
+  message without text (a tool result, a tool-call-only assistant message) — or its nearest shown
+  ancestor with `exact: false`; `null` for a file outside `sessionsRoot()`) and `contextWindow(provider,
+  model)` (a model's context window from the host's model catalog with its overrides, `null` when unknown)
+  and `turnReceipts(sessionId)` (`ExtensionTurnReceipt[]`: the run change sets the host recorded for that
+  session, oldest first — start, settle and each changed path, workspace-relative as git reports it, with
+  its status and line counts; empty when it kept none) and `turnTree(sessionId, startedAt, limits)`
+  (`ExtensionTurnTree`: the workspace as that receipt's run left it — its recorded tree's regular files as
+  `ExtensionTreeFile`s, worktree-relative paths and bytes —, `tooLarge` with the counts past `limits`,
+  `null` when the host no longer has the tree) and `ensureArtifactsDir(workspaceId)`
+  (`ExtensionArtifactsDir`: an open workspace's artifacts folder, absolute and worktree-relative,
+  recreated with its self-ignoring `.gitignore` when missing — the session-level `workspaceFiles` rule,
+  addressed by workspace id since queries have no session; `null` for a workspace that is not open).
+  A service is added with the consumer that needs it.
 - `sessionExtensions(session: ExtensionSessionServices) => ExtensionFactory[]` is how an extension uses
   per-session state the host owns: the host calls it once per parent session with that session's
   services: `setting(key)` (the extension's own declared setting, read inside a factory body so a pi
@@ -142,7 +191,8 @@ The host retains registration, lifecycle and ordering; `define*` helpers preserv
   - `awaitToolResponse(toolCallId, signal)` resolves a `ToolResponse`: `{kind: "response", value}`,
     `{kind: "deferred"}` or `{kind: "abandoned"}`.
 - The root is browser-safe and exposes only the web contract; it never re-exports the server half.
-- Workspace dependencies are `contracts` and, type-only, `@thinkrail/locales`' `MessageKey` and
+- Workspace dependencies are `contracts` (types, now also `HistoryScope`, `SessionCompletion` and
+  `Workspace` for the host services) and, type-only, `@thinkrail/locales`' `MessageKey` and
   `@thinkrail/locales/react`'s `Translator`.
   React and pi are type-only contract dependencies; there are no React components, registry, DOM access,
   host imports, or pi runtime values.

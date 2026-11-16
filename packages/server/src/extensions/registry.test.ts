@@ -19,6 +19,7 @@ describe("server extension registry", () => {
 			"@thinkrail/ext-visualize/server",
 			"@thinkrail/ext-ask-user-question/server",
 			"@thinkrail/ext-web-access/server",
+			"@thinkrail/ext-session-insights/server",
 		]);
 		expect(new Set(specifiers).size).toBe(specifiers.length);
 		for (const entry of serverExtensions) {
@@ -30,6 +31,7 @@ describe("server extension registry", () => {
 			"visualize",
 			"ask-user-question",
 			"web-access",
+			"session-insights",
 		]);
 	});
 

@@ -25,6 +25,7 @@ import {
 	extensionSkillRoots,
 	type HostSessionServices,
 	omitDisabledRegistryExtensions,
+	omitSupersededPackages,
 	preferRegistryTools,
 	registryInlineExtensions,
 	STAGED_HOST_SKILLS_ROUTE,
@@ -467,7 +468,12 @@ export async function buildResourceLoader(
 		extensionsOverride: (result: LoadExtensionsResult) => {
 			recordProviderOwners(result);
 			recordLoadedExtensions(result);
-			return preferRegistryTools(omitDisabledRegistryExtensions(result, isDisabledAtReload));
+			return preferRegistryTools(
+				omitSupersededPackages(
+					omitDisabledRegistryExtensions(result, isDisabledAtReload),
+					isDisabledAtReload,
+				),
+			);
 		},
 	};
 	const devExtensionPaths = bundled ? [] : resolveDevPaths().extensionPaths;

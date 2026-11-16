@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import type {
 	ExtensionFactory,
 	InlineExtension,
@@ -81,6 +83,59 @@ export function omitDisabledRegistryExtensions(
 	const kept = result.extensions.filter((extension) => {
 		const name = registryExtensionName(extension.path, entries);
 		return name === undefined || !isDisabled(name);
+	});
+	return kept.length === result.extensions.length ? result : { ...result, extensions: kept };
+}
+
+const packageNames = new Map<string, string | null>();
+
+/** The `name` of the nearest `package.json` above a loaded extension file, memoized per folder. */
+export function packageNameOf(file: string): string | null {
+	const visited: string[] = [];
+	let name: string | null = null;
+	for (let dir = dirname(file); ; dir = dirname(dir)) {
+		const known = packageNames.get(dir);
+		if (known !== undefined) {
+			name = known;
+			break;
+		}
+		visited.push(dir);
+		try {
+			const manifest: unknown = JSON.parse(readFileSync(join(dir, "package.json"), "utf8"));
+			const value =
+				typeof manifest === "object" && manifest !== null && "name" in manifest
+					? manifest.name
+					: null;
+			name = typeof value === "string" ? value : null;
+			break;
+		} catch {}
+		if (dirname(dir) === dir) break;
+	}
+	for (const dir of visited) packageNames.set(dir, name);
+	return name;
+}
+
+/**
+ * Drops the extensions of the vanilla pi packages an enabled registry extension supersedes
+ * (`supersedesPackages`), wherever pi installed them from: a user's vanilla install of a capability the
+ * host composes itself never runs beside it in a host session.
+ */
+export function omitSupersededPackages(
+	result: LoadExtensionsResult,
+	isDisabled: ExtensionDisabled,
+	entries: readonly ServerExtensionEntry[] = serverExtensions,
+	nameOf: (file: string) => string | null = packageNameOf,
+): LoadExtensionsResult {
+	const superseded = new Set(
+		entries.flatMap(({ extension }) =>
+			isDisabled(extension.name) ? [] : (extension.supersedesPackages ?? []),
+		),
+	);
+	if (superseded.size === 0) return result;
+	const kept = result.extensions.filter((extension) => {
+		if (extension.path.startsWith("<inline:")) return true;
+		const name = nameOf(extension.resolvedPath || extension.path);
+		return name === null || !superseded.has(name);
 	});
 	return kept.length === result.extensions.length ? result : { ...result, extensions: kept };
 }

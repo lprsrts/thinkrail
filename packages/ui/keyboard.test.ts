@@ -225,6 +225,8 @@ const UNGUARDED_BY_DESIGN: Record<string, string> = {
 		"its only key handler is on the weight range slider; its text field spreads useSettingsDraft's guarded inputProps",
 	"packages/resource-renderers/src/renderers/VisualDiff.tsx":
 		"its only key handler is the swipe divider slider (swipeDividerValue yields to an IME); its only input is the onion opacity range",
+	"thinkrail-extensions/session-insights/web/SessionsPanel.tsx":
+		"its only key listener matches the panel's search key through useLocalKeys, whose match yields to an IME; the field itself is SearchBox's",
 };
 
 function sourceFiles(dir: string): string[] {

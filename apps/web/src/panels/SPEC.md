@@ -378,9 +378,10 @@ treatment.
   The `ChangesPanel` secondary toolbar paints **no surface of its own**: like the right-panel tab strip
   it shows the panel's `container-sidebar-bg`, so the two chrome rows read as one continuous surface. The **file-style tree row** (chevron/spacer
   lead, folder/file icon, truncated label, trailing slot; `min-w-0` so a row can shrink when it shares a
-  flex line with a trailing control) is the shared **`TreeRow`**, used by `FileTree`, `ChangesTree`
-  and the Artifacts tree so the trees stay identical; its optional `icon` replaces the file glyph (the
-  Artifacts tree's type icons). `TreeRow`'s optional `onWarm` reports
+  flex line with a trailing control) is the shared **`TreeRow`** (`@thinkrail/ui/tree-row`; it moved to
+  [[module-ui]] with `DiffStatBadge` and `folderChains` when the session-insights heat tree became their
+  second consumer), used by `FileTree`, `ChangesTree` and the Artifacts tree so the trees stay identical;
+  its optional `icon` replaces the file glyph (the Artifacts tree's type icons). `TreeRow`'s optional `onWarm` reports
   `hover` (pointer enter) or `focus`. `FileTree` file rows warm at once on focus and through
   `warmOnHover` on hover, which keeps one pending row and fires after the pointer rests 150 ms, so a
   sweep across the tree loads nothing. A warm preloads the code view
@@ -394,7 +395,8 @@ treatment.
   one child and that child is another directory, and the compact row expands/collapses the deepest
   directory as one unit. `ChangesTree` evaluates this against the changed-file tree; `FileTree` resolves
   only visible compact runs through its existing client-side directory reads, so the wire remains a plain
-  immediate-directory listing. The **`+N −M` diff-count badge** is the shared **`DiffStatBadge`**, used
+  immediate-directory listing (the run logic is `@thinkrail/ui/folder-chains`). The **`+N −M` diff-count
+  badge** is the shared **`DiffStatBadge`** (`@thinkrail/ui/diff-stat-badge`), used
   only inside Changes: the flat list's file rows, the tree's file rows, and a tree folder's aggregate only
   while it is collapsed (an expanded folder's children already show those counts).
   `ChangesTree`'s tree build + `+/−` aggregation + shared status glyphs live in the pure
@@ -2657,7 +2659,9 @@ menu has closed, because a closing menu returns focus to its row; disabled
   convergence, and promote-by-keyboard/touch.
 - **Sidebar trees share one keyboard model (`treeNavigation.tsx`).** Files, Changes (both views), Specs,
   Chats, Projects and the Artifacts tool's two sections are each a `Tree` — a `div role=tree` with **one Tab stop** (roving tabindex) — whose
-  rows' focusable controls are `useTreeItem` treeitems (`aria-level`, `aria-expanded` on expandables,
+  rows' focusable controls are `useTreeItem` treeitems (`@thinkrail/ui/tree-item`, the item half `TreeRow`
+  needs in [[module-ui]]; it reads the roving cursor and search marks `Tree` provides through
+  `TreeItemScopeContext`) (`aria-level`, `aria-expanded` on expandables,
   `aria-current` for the selected row) under `li role=none`; the tree is a `div role=tree` and every
   list inside it is `role=none`, so the hierarchy is the explicit `aria-level` (VS Code's flat-tree
   markup) rather than nested `group`s, which Biome's semantic-element rules reject on lists. Chats and

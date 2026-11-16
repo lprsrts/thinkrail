@@ -1,6 +1,7 @@
 import { t as globalT, useT } from "@thinkrail/locales/react";
 import { useEffect, useMemo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
+import { extensionPanels } from "../extensions";
 import { openFindInFiles } from "../findInFiles";
 import { chatDisplayName, copyText } from "../lib";
 import { canStartProjectlessChat, startProjectlessChat } from "../panels/chatActions";
@@ -67,6 +68,7 @@ import {
 	toggleLeftSide,
 	toggleRightSide,
 } from "./chordActions";
+import { openExtensionPanel } from "./extensionPanelHost";
 import { useResolvedKeybindings } from "./keybindingState";
 import { collectCenterGroups } from "./layout";
 import { readNativePageZoomBridge } from "./nativePageZoom";
@@ -267,6 +269,7 @@ export function useSearchPalette(options: SearchPaletteOptions): SearchPalettePr
 			settleBlocked,
 			settingsGroups,
 			tabActions,
+			extensionPanels: extensionPanels(),
 			actions: {
 				newWorkspace: options.openNewWorkspace,
 				newProjectlessChat: () => void startProjectlessChat(),
@@ -281,6 +284,7 @@ export function useSearchPalette(options: SearchPaletteOptions): SearchPalettePr
 				toggleRight: toggleRightSide,
 				toggleBottom: toggleBottomPanel,
 				showTool: (workspaceId, tool) => store().requestToolView(workspaceId, tool),
+				openExtensionPanel,
 				showFiles,
 				focusRegion: focusAdjacentRegion,
 				focusComposer: focusChatComposer,

@@ -1311,9 +1311,11 @@ re-opened transcripts provider-valid.
   and pure helpers (`createToolResponseWaiters`/`toolResponseSessionServices`/`assessRespondability`/
   `describeToolResponse`/`buildToolResponseMessage`/`awaitingToolCallId`); normalized-state operations
   (`listSessionStates`/`acknowledgeCompletion`/`markWorkspaceUnread`/`markWorkspaceRead`/`nudgeSession` +
-  publisher/project seams);
-  `repairDanglingToolCalls`; `liveParentContext` + `readChildTranscript` + `trashWorkspaceDelegation`
-  (the delegation embedding); the skill catalog helpers
+  publisher/project seams) and `sessionCompletionOf(sessionId)` (the persisted completion, `null` when none
+  or before the baseline — an in-memory read that, unlike `listSessionStates`, parses no transcript, for
+  the extension host services);
+  `repairDanglingToolCalls`; `liveParentContext` + `readChildTranscript` + `trashWorkspaceDelegation` +
+  `delegationRootDir()` (the delegation embedding); the skill catalog helpers
   `listSkillCommands(cwd, admission)` (filtered, pre-session autocomplete) / `listSkillCatalog(cwd, admission)`
   (unfiltered, the manager's `skills.state`) / `listProjectAliasSkillNames(cwd)` (present-alias count) /
   `isProjectSkillPath(relativePath)` (watch-classification predicate) /

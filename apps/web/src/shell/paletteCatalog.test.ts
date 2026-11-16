@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import { RiBarChartBoxLine } from "@remixicon/react";
 import type { NativePageZoomAction, Workspace } from "@thinkrail/contracts";
 import { currentTranslator } from "@thinkrail/locales/react";
+import type { RegisteredPanel } from "../extensions";
 import { type KeybindingId, keybindingShortcut, resolveKeybindings } from "../keybindings";
 import { commandItems } from "../search";
 import {
@@ -93,6 +95,7 @@ function deps(overrides: Partial<PaletteCatalogDeps> = {}): PaletteCatalogDeps {
 		settleBlocked: false,
 		settingsGroups: [],
 		tabActions: [],
+		extensionPanels: [],
 		actions: {
 			newWorkspace: noop,
 			newProjectlessChat: noop,
@@ -106,6 +109,7 @@ function deps(overrides: Partial<PaletteCatalogDeps> = {}): PaletteCatalogDeps {
 			toggleRight: noop,
 			toggleBottom: noop,
 			showTool: noop,
+			openExtensionPanel: noop,
 			showFiles: noop,
 			focusRegion: noop,
 			focusComposer: noop,
@@ -275,6 +279,51 @@ describe("palette focus commands", () => {
 		row("view.changes", catalog)?.run?.();
 		expect(shown).toEqual(["all", "changed"]);
 		expect(row("view.changes", deps({ changesAvailable: false }))).toBeUndefined();
+	});
+});
+
+describe("palette extension panel commands", () => {
+	const load = async () => ({ default: () => null });
+	const projectPanel: RegisteredPanel = {
+		extension: "insights",
+		panel: "sessions",
+		declaration: {
+			title: "settings.nav.extensions",
+			icon: RiBarChartBoxLine,
+			scopes: ["project"],
+			load,
+		},
+	};
+	const sessionPanel: RegisteredPanel = {
+		extension: "insights",
+		panel: "turn",
+		declaration: { title: "common.retry", icon: RiBarChartBoxLine, scopes: ["session"], load },
+	};
+
+	test("lists one command per project-scoped panel while a workspace is active, and opens it there", () => {
+		const opened: [string, RegisteredPanel][] = [];
+		const catalog = deps({
+			extensionPanels: [projectPanel, sessionPanel],
+			actions: {
+				...deps().actions,
+				openExtensionPanel: (workspaceId, panel) => opened.push([workspaceId, panel]),
+			},
+		});
+		const command = row("view.extension.insights.sessions", catalog);
+		expect(command).toMatchObject({
+			title: "Open Extensions",
+			subtitle: "View",
+			icon: RiBarChartBoxLine,
+		});
+		expect(row("view.extension.insights.turn", catalog)).toBeUndefined();
+		command?.run?.();
+		expect(opened).toEqual([["w1", projectPanel]]);
+		expect(
+			row(
+				"view.extension.insights.sessions",
+				deps({ extensionPanels: [projectPanel], activeWorkspace: null }),
+			),
+		).toBeUndefined();
 	});
 });
 

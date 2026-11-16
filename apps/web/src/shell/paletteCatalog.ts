@@ -46,6 +46,7 @@ import type { EditorInfo, NativePageZoomBridge, Workspace } from "@thinkrail/con
 import type { MessageKey } from "@thinkrail/locales";
 import type { Translator } from "@thinkrail/locales/react";
 import type { Command, CommandShortcut } from "../commands";
+import type { RegisteredPanel } from "../extensions";
 import {
 	DESKTOP_KEYS,
 	FOCUS_GROUP_BINDINGS,
@@ -97,6 +98,7 @@ export interface PaletteCatalogDeps {
 	readonly settleBlocked: boolean;
 	readonly settingsGroups: readonly SettingsNavGroup[];
 	readonly tabActions: readonly TabAction[];
+	readonly extensionPanels: readonly RegisteredPanel[];
 	readonly actions: PaletteCatalogActions;
 }
 
@@ -113,6 +115,7 @@ export interface PaletteCatalogActions {
 	readonly toggleRight: () => void;
 	readonly toggleBottom: () => void;
 	readonly showTool: (workspaceId: string, tool: PaletteTool) => void;
+	readonly openExtensionPanel: (workspaceId: string, panel: RegisteredPanel) => void;
 	readonly showFiles: (mode: "all" | "changed") => void;
 	readonly focusRegion: (delta: 1 | -1) => void;
 	readonly focusComposer: () => void;
@@ -371,6 +374,19 @@ function viewCommands(deps: PaletteCatalogDeps): Command[] {
 				...(tool === "files"
 					? { ...shortcutOf(deps, "view.files"), run: () => actions.showFiles("all") }
 					: { run: () => actions.showTool(activeWorkspace.id, tool) }),
+			});
+		}
+	}
+	if (activeWorkspace) {
+		for (const panel of deps.extensionPanels) {
+			if (!panel.declaration.scopes.includes("project")) continue;
+			commands.push({
+				id: `view.extension.${panel.extension}.${panel.panel}`,
+				title: t("commands.view.openPanel", { panel: t(panel.declaration.title) }),
+				group: "view",
+				icon: panel.declaration.icon,
+				keywords: ["panel", "extension", panel.extension, panel.panel],
+				run: () => actions.openExtensionPanel(activeWorkspace.id, panel),
 			});
 		}
 	}

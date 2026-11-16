@@ -2,6 +2,8 @@ import { describe, expect, it, mock } from "bun:test";
 import {
 	defineWebExtension,
 	type GlobalOverlayProps,
+	type PanelDeclaration,
+	type PanelProps,
 	type ToolRegistrationOptions,
 	type ToolRenderProps,
 	type WebExtension,
@@ -65,6 +67,24 @@ describe("defineWebExtension", () => {
 		expect(onOpenFile).toHaveBeenCalledWith("src/example.ts");
 		expect(extension.toolRenderers.file.options.summary(props)).toBe("running");
 		expect(defineWebExtension({ name: "empty", toolRenderers: {} }).toolRenderers).toEqual({});
+		expect(defineWebExtension({ name: "empty", toolRenderers: {} })).not.toHaveProperty("panels");
+	});
+
+	it("preserves panel declarations without loading their components", async () => {
+		const Panel = ({ params }: PanelProps) => params.view ?? null;
+		const load = mock(async () => ({ default: Panel }));
+		const icon = () => null;
+		const declaration: PanelDeclaration = {
+			title: "common.retry",
+			icon,
+			scopes: ["project"],
+			load,
+		};
+		const extension = defineWebExtension({ name: "panels", panels: { overview: declaration } });
+
+		expect(extension.panels.overview).toBe(declaration);
+		expect(load).not.toHaveBeenCalled();
+		expect((await extension.panels.overview.load()).default).toBe(Panel);
 	});
 });
 

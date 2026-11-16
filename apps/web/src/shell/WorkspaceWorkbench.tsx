@@ -75,6 +75,7 @@ import {
 	useDeletedChatPlacementReconciliation,
 	useWorkspaceChatCatalogReconciliation,
 } from "./chatReconciliation";
+import { ExtensionPanelBody } from "./ExtensionPanelBody";
 import { useResolvedKeybindings } from "./keybindingState";
 import {
 	collectAllGroups,
@@ -677,6 +678,9 @@ export function WorkspaceWorkbench({ workspaceId }: { workspaceId: string }) {
 					</ErrorBoundary>
 				);
 			}
+			if (tab.kind === "extension") {
+				return <ExtensionPanelBody workspaceId={workspaceId} tab={tab} />;
+			}
 			if (tab.kind === "terminal") {
 				const terminal = terminalByKey.get(tab.tabKey);
 				const location = document ? findTabLocation(document, tab.id) : null;
@@ -1044,7 +1048,8 @@ export function WorkspaceWorkbench({ workspaceId }: { workspaceId: string }) {
 								tab.kind === "file" ||
 								tab.kind === "diff" ||
 								tab.kind === "changes" ||
-								tab.kind === "document"
+								tab.kind === "document" ||
+								tab.kind === "extension"
 							) {
 								for (const cache of state.tabsByWorkspace[workspaceId] ?? []) {
 									const resource = toLayoutTab(cache);
