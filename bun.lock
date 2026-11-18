@@ -1480,6 +1480,7 @@
     "@thinkrail/ext-ask-user-question": ["@thinkrail/ext-ask-user-question@workspace:thinkrail-extensions/ask-user-question"],
 
     "@thinkrail/ext-hint-mode": ["@thinkrail/ext-hint-mode@workspace:thinkrail-extensions/hint-mode"],
+
     "@thinkrail/ext-next-steps": ["@thinkrail/ext-next-steps@workspace:thinkrail-extensions/next-steps"],
 
     "@thinkrail/ext-visualize": ["@thinkrail/ext-visualize@workspace:thinkrail-extensions/visualize"],
