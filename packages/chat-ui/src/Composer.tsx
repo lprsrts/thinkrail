@@ -12,8 +12,8 @@ import type { ComposerGrowthLimit, ThinkingLevel, WireModel } from "@thinkrail/c
 import type { MessageKey } from "@thinkrail/locales";
 import { useT } from "@thinkrail/locales/react";
 import { Button, IconButton } from "@thinkrail/ui/button";
-import { hasPlatformModifier, isImeComposing, keyCap } from "@thinkrail/ui/keyboard";
 import type { LocalKeyCommand } from "@thinkrail/ui/keyboard";
+import { hasPlatformModifier, isImeComposing, keyCap } from "@thinkrail/ui/keyboard";
 import { useLocalKeys } from "@thinkrail/ui/local-keys";
 import { Popover, PopoverContent, PopoverTrigger } from "@thinkrail/ui/popover";
 import { IconTooltip } from "@thinkrail/ui/tooltip";
@@ -29,6 +29,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { composerShiftTabOut, composerTranscriptStep } from "./composerKeys";
 import { FileChip } from "./FileChip";
 import {
 	ModelEffortPicker,
@@ -61,7 +62,6 @@ import {
 	type PromptImagesOwner,
 	usePromptImages,
 } from "./promptImages";
-import { composerShiftTabOut, composerTranscriptStep } from "./composerKeys";
 import type { ChatAttachment } from "./types";
 
 export type SubmitBehavior = "send" | "steer" | "followUp" | "interrupt";

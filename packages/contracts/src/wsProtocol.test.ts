@@ -768,9 +768,9 @@ test("ask_user_question discuss answers are pinned to v105, after background wor
 	expect(PROTOCOL_VERSION).toBeGreaterThanOrEqual(ASK_DISCUSS_PROTOCOL_VERSION);
 });
 
-test("phone access is switched from Settings from v122", () => {
-	expect(REMOTE_ACCESS_PROTOCOL_VERSION).toBe(122);
-	expect(PROTOCOL_VERSION).toBe(122);
+test("phone access is switched from Settings from v126", () => {
+	expect(REMOTE_ACCESS_PROTOCOL_VERSION).toBe(126);
+	expect(PROTOCOL_VERSION).toBe(126);
 	expect(WS_METHODS.remoteStatus).toBe("remote.status");
 	expect(WS_METHODS.remoteSetEnabled).toBe("remote.setEnabled");
 	expect(WS_METHODS.remoteIssueLink).toBe("remote.issueLink");
